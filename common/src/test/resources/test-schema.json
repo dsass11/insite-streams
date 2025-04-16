@@ -1,0 +1,23 @@
+{
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "size": 36,
+      "isPII": false
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "size": 100,
+      "isPII": true,
+      "piiOperation": "mask"
+    },
+    {
+      "name": "age",
+      "type": "integer",
+      "isPII": true,
+      "piiOperation": "generalize"
+    }
+  ]
+}
