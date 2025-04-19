@@ -7,14 +7,13 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
+import com.insite.streams.common.utils.JsonUtils.mapper
 /**
  * Utilities for schema handling
  */
 object SchemaUtils {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
-  
+
   /**
    * Load schema definition from file
    *

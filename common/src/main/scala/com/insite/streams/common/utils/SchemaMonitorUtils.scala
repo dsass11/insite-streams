@@ -1,6 +1,6 @@
 package com.insite.streams.common.utils
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.databind.{JsonNode}
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -22,13 +22,13 @@ import org.apache.flink.connector.file.src.util.MutableRecordAndPosition
 import java.time.Duration
 import org.apache.flink.connector.file.src.util.{MutableRecordAndPosition, RecordAndPosition}
 import org.apache.flink.connector.file.src.FileSourceSplit
+import com.insite.streams.common.utils.JsonUtils.mapper
 
 /**
  * Utilities for schema monitoring and broadcasting
  */
 object SchemaMonitorUtils {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val mapper = new ObjectMapper()
 
   // Standard descriptor for schema broadcast state
   val schemaDescriptor = new MapStateDescriptor[String, JsonNode](
