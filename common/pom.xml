@@ -58,13 +58,9 @@
         <!-- Kafka Connector -->
         <dependency>
             <groupId>org.apache.flink</groupId>
-<<<<<<< HEAD
-            <artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
-=======
             <artifactId>flink-connector-kafka</artifactId>
             <version>${flink.version}</version>
             <scope>provided</scope>
->>>>>>> feature/schema-monitor
         </dependency>
 
         <!-- JSON Processing -->

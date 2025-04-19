@@ -96,7 +96,7 @@
                 <artifactId>flink-table-planner_${scala.binary.version}</artifactId>
                 <version>${flink.version}</version>
             </dependency>
-            
+
             <!-- Kafka Connector -->
             <dependency>
                 <groupId>org.apache.flink</groupId>
@@ -162,8 +162,6 @@
         </dependencies>
     </dependencyManagement>
 
-<<<<<<< HEAD
-=======
     <repositories>
         <repository>
             <id>central</id>
@@ -177,7 +175,6 @@
         </repository>
     </repositories>
 
->>>>>>> feature/schema-monitor
     <build>
         <pluginManagement>
             <plugins>
@@ -198,14 +195,14 @@
                         <scalaVersion>${scala.version}</scalaVersion>
                     </configuration>
                 </plugin>
-                
+
                 <!-- Maven Shade Plugin for creating uber JARs -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
                     <version>3.3.0</version>
                 </plugin>
-                
+
                 <!-- Maven Compiler Plugin -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
