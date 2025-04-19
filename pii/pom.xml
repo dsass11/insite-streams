@@ -3,32 +3,38 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
+    
     <parent>
         <groupId>com.insite</groupId>
         <artifactId>insite-streams</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>common</artifactId>
+    <artifactId>pii</artifactId>
 
     <dependencies>
+        <!-- Common module -->
+        <dependency>
+                <groupId>com.insite</groupId>
+                <artifactId>common</artifactId>
+                <version>1.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- Scala -->
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
         </dependency>
-        <!-- Flink File Connector -->
+        <!-- Flink File Connector and S3 -->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-connector-files</artifactId>
-            <version>${flink.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-s3-fs-hadoop</artifactId>
-            <version>${flink.version}</version>
         </dependency>
+
         <!-- Flink Core - Java API -->
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -43,28 +49,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-scala_2.12</artifactId>
-            <version>${flink.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-scala_2.12</artifactId>
-            <version>${flink.version}</version>
-        </dependency>
-
         <!-- Kafka Connector -->
         <dependency>
             <groupId>org.apache.flink</groupId>
-<<<<<<< HEAD
-            <artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
-=======
             <artifactId>flink-connector-kafka</artifactId>
             <version>${flink.version}</version>
             <scope>provided</scope>
->>>>>>> feature/schema-monitor
         </dependency>
 
         <!-- JSON Processing -->
@@ -75,16 +65,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-        </dependency>
-
-        <!-- Logging -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
         </dependency>
 
         <!-- Testing -->
@@ -100,6 +80,27 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            
+            <!-- Maven Shade Plugin for creating uber JARs -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.insite.streams.common.StreamRunner</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

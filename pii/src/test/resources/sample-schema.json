@@ -1,0 +1,58 @@
+{
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "size": 36,
+      "isPII": false
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "size": 100,
+      "isPII": true,
+      "piiOperation": "mask",
+      "maskFormat": "XX******X"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "size": 100,
+      "isPII": true,
+      "piiOperation": "mask"
+    },
+    {
+      "name": "ssn",
+      "type": "string",
+      "size": 11,
+      "isPII": true,
+      "piiOperation": "hash"
+    },
+    {
+      "name": "age",
+      "type": "integer",
+      "isPII": true,
+      "piiOperation": "generalize",
+      "ranges": [0, 18, 30, 50, 65, 100]
+    },
+    {
+      "name": "address",
+      "type": "string",
+      "isPII": true,
+      "piiOperation": "redact"
+    },
+    {
+      "name": "phoneNumber",
+      "type": "string",
+      "isPII": true,
+      "piiOperation": "mask",
+      "maskFormat": "***-***-XXXX"
+    },
+    {
+      "name": "income",
+      "type": "integer",
+      "isPII": true,
+      "piiOperation": "randomize"
+    }
+  ]
+}
