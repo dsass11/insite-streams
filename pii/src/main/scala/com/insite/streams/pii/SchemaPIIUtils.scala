@@ -153,4 +153,26 @@ object SchemaPIIUtils {
     val formatNode = field.get("maskFormat")
     if (formatNode != null) formatNode.asText() else null
   }
+
+  /**
+   * Apply PII masking to all fields in a record based on schema
+   */
+  def maskPIIFields(record: PIIRecord, schema: JsonNode): PIIRecord = {
+    var processedRecord = record
+
+    // Process each field in the record
+    record.fields.foreach { case (fieldName, fieldValue) =>
+      // Check if field is defined in schema
+      SchemaPIIUtils.getFieldByName(schema, fieldName).foreach { fieldDef =>
+        // Check if field is PII
+        if (SchemaPIIUtils.isPIIField(fieldDef)) {
+          // Apply PII operation
+          val maskedValue = PIIOperations.applyPIIOperation(fieldValue, fieldDef)
+          processedRecord = processedRecord.withField(fieldName, maskedValue)
+        }
+      }
+    }
+
+    processedRecord
+  }
 }

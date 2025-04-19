@@ -2,6 +2,7 @@ package com.insite.streams.pii
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.scalatest.BeforeAndAfterAll
@@ -10,21 +11,30 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ArrayBuffer
 
+// Avoid serialization issues by externalizing ObjectMapper
+object TestMapper extends Serializable {
+  @transient lazy val mapper: ObjectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+}
+
 class PIIStreamTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
-  "PIIStream" should "process and mask PII fields" in {
-    // Set up test collector
+  "PIIStream" should "process and mask PII fields correctly" in {
+    // Clear previous results
     TestSinkFunction.values.clear()
 
-    // Set up Flink environment for testing
+    // Set up Flink environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    // Get test schema path
-    val schemaPath = getClass.getResource("/sample-schema.json").getPath
+    // Load schema
+    val schemaUrl = Option(getClass.getClassLoader.getResource("sample-schema.json"))
+      .getOrElse(throw new RuntimeException("sample-schema.json not found in test resources"))
 
+    val schemaPath = schemaUrl.getPath
+    val schema = SchemaPIIUtils.loadSchema(schemaPath).getOrElse(fail("Schema not loaded"))
+    val piiStream = new PIIStream()
 
-    // Create sample record as JSON string
+    // Sample test input
     val testRecord =
       """
       {
@@ -39,76 +49,45 @@ class PIIStreamTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
       }
       """
 
-    // Create a source that produces our test record
-    val testSource = env.fromElements(testRecord)
+    val source = env.fromElements(testRecord)
 
-    // Create a PII processor that takes the source and applies processing
-    val piiStream = new PIIStream()
-
-    // Apply custom logic to test the record processing in isolation
-    val processedStream = testSource
-      .map(jsonStr => {
-        val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
-        val jsonNode = mapper.readTree(jsonStr)
+    // Define safe JSON parser map function
+    val parsed = source.map(new MapFunction[String, PIIRecord] with Serializable {
+      override def map(json: String): PIIRecord = {
+        val jsonNode = TestMapper.mapper.readTree(json)
         PIIRecord.fromJsonNode(jsonNode)
-      })
-      .map(record => {
-        // Manually load schema and set it on PIIStream for testing
-        val loadedSchema = SchemaPIIUtils.loadSchema(schemaPath).getOrElse(fail("Failed to load schema"))
-        piiStream.testMaskPIIFields(record, loadedSchema)
-      })
-
-    // Add test sink to collect results
-    processedStream.addSink(new TestSinkFunction[PIIRecord])
-
-    // Execute the job
-    env.execute("PII-Stream-Test")
-
-    // Verify results
-    TestSinkFunction.values.size should be(1)
-
-    val processedRecord = TestSinkFunction.values.head
-
-    // Check that ID remains unchanged
-    processedRecord.id shouldBe "user-123"
-
-    // Check that PII fields are masked
-    processedRecord.getField[String]("email").get should include("*")
-    processedRecord.getField[String]("ssn").get should not be "123-45-6789"
-    processedRecord.getField[String]("address").get shouldBe "[REDACTED]"
-  }
-}
-
-// Add a public testing method to PIIStream
-class PIIStream {
-  // Add this method for testing purposes
-  def testMaskPIIFields(record: PIIRecord, testSchema: JsonNode): PIIRecord = {
-    var processedRecord = record
-
-    // Process each field in the record
-    record.fields.foreach { case (fieldName, fieldValue) =>
-      // Check if field is defined in schema
-      SchemaPIIUtils.getFieldByName(testSchema, fieldName).foreach { fieldDef =>
-        // Check if field is PII
-        if (SchemaPIIUtils.isPIIField(fieldDef)) {
-          // Apply PII operation
-          val maskedValue = PIIOperations.applyPIIOperation(fieldValue, fieldDef)
-          processedRecord = processedRecord.withField(fieldName, maskedValue)
-        }
       }
-    }
+    })
 
-    processedRecord
+    // Apply masking using a serializable map function
+    val masked = parsed.map(new MapFunction[PIIRecord, PIIRecord] with Serializable {
+      override def map(record: PIIRecord): PIIRecord = SchemaPIIUtils.maskPIIFields(record, schema)
+    })
+
+    // Add test sink
+    masked.addSink(new TestSinkFunction[PIIRecord])
+
+    // Run test job
+    env.execute("PII Stream Masking Test")
+
+    // Validate output
+    TestSinkFunction.values should have size 1
+    val result = TestSinkFunction.values.head
+
+    result.id shouldBe "user-123"
+    result.getField[String]("email").get should include("*")
+    result.getField[String]("ssn").get should not be "123-45-6789"
+    result.getField[String]("address").get shouldBe "[REDACTED]"
   }
 }
 
-// Test sink to collect results
+// Add test sink to collect output
 class TestSinkFunction[T] extends SinkFunction[T] {
-  override def invoke(element: T, context: SinkFunction.Context): Unit = {
-    TestSinkFunction.values.append(element.asInstanceOf[PIIRecord])
+  override def invoke(value: T, context: SinkFunction.Context): Unit = {
+    TestSinkFunction.values.append(value.asInstanceOf[PIIRecord])
   }
 }
 
 object TestSinkFunction {
-  val values = new ArrayBuffer[PIIRecord]()
+  val values: ArrayBuffer[PIIRecord] = new ArrayBuffer[PIIRecord]()
 }

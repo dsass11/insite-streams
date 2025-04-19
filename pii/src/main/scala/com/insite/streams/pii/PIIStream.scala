@@ -1,7 +1,7 @@
 package com.insite.streams.pii
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.insite.streams.common.utils.JsonUtils.mapper
 import com.insite.streams.common.Stream
 import com.insite.streams.common.metrics.StreamMetrics
 import com.insite.streams.common.utils.{KafkaUtils, SchemaMonitorUtils}
@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory
  */
 class PIIStream extends Stream[PIIRecord] {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
+
 
   /**
    * Process records from Kafka, apply PII masking, and return processed stream
@@ -109,7 +109,7 @@ class PIIStream extends Stream[PIIRecord] {
           val record = PIIRecord.fromJsonNode(jsonNode, Some(schema))
 
           // Apply PII masking based on schema
-          val maskedRecord = maskPIIFields(record, schema)
+          val maskedRecord = SchemaPIIUtils.maskPIIFields(record, schema)
 
           out.collect(maskedRecord)
         } catch {
@@ -132,25 +132,4 @@ class PIIStream extends Stream[PIIRecord] {
     }
   }
 
-  /**
-   * Apply PII masking to all fields in a record based on schema
-   */
-  private def maskPIIFields(record: PIIRecord, schema: JsonNode): PIIRecord = {
-    var processedRecord = record
-
-    // Process each field in the record
-    record.fields.foreach { case (fieldName, fieldValue) =>
-      // Check if field is defined in schema
-      SchemaPIIUtils.getFieldByName(schema, fieldName).foreach { fieldDef =>
-        // Check if field is PII
-        if (SchemaPIIUtils.isPIIField(fieldDef)) {
-          // Apply PII operation
-          val maskedValue = PIIOperations.applyPIIOperation(fieldValue, fieldDef)
-          processedRecord = processedRecord.withField(fieldName, maskedValue)
-        }
-      }
-    }
-
-    processedRecord
-  }
 }
