@@ -64,6 +64,7 @@ object StreamRunner {
         // Report metrics
         reporter.report(metrics)
     }
+
   }
 
   /**

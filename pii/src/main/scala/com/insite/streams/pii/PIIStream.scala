@@ -1,6 +1,6 @@
 package com.insite.streams.pii
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.databind.JsonNode
 import com.insite.streams.common.utils.JsonUtils.mapper
 import com.insite.streams.common.Stream
 import com.insite.streams.common.metrics.StreamMetrics
@@ -10,6 +10,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
+
+import scala.util.{Failure, Success}
+
 
 /**
  * Stream implementation for PII data masking with schema monitoring
@@ -25,15 +28,20 @@ class PIIStream extends Stream[PIIRecord] with java.io.Serializable {
     val schemaPath = config.getOrElse("schema-path",
       throw new IllegalArgumentException("schema-path configuration parameter is required"))
 
-    // Refresh interval in minutes (default 1 minute)
-    val refreshIntervalMinutes = config.getOrElse("schema.refresh.interval.minutes", "1").toInt
+    // Get refresh interval in seconds (default 60)
+    val refreshIntervalSeconds = config.getOrElse("schema.refresh.interval.seconds", "60").toInt
 
-    // Create schema broadcast stream using SchemaMonitorUtils
+    // Determine if verbose logging is enabled
+    val verboseLogging = config.getOrElse("schema.verbose.logging", "false").toBoolean
+
+    // Create schema broadcast stream using the updated SchemaMonitorUtils
     val schemaStream = SchemaMonitorUtils.createSchemaBroadcast(
       env,
       schemaPath,
-      refreshIntervalMinutes
+      refreshIntervalSeconds,
+      verboseLogging
     )
+
 
     // Get Kafka connection parameters
     val inputTopic = config.getOrElse("input-topic",
@@ -62,20 +70,40 @@ class PIIStream extends Stream[PIIRecord] with java.io.Serializable {
    * Output the processed stream to Kafka
    */
   override def doOutput(stream: DataStream[PIIRecord])(implicit env: StreamExecutionEnvironment, config: Map[String, String]): Unit = {
-    // Get Kafka connection parameters
-    val outputTopic = config.getOrElse("output-topic",
-      throw new IllegalArgumentException("output-topic configuration parameter is required"))
-    val bootstrapServers = config.getOrElse("bootstrap-servers", "localhost:9092")
+    try {
+      // Get Kafka connection parameters
+      val outputTopic = config.getOrElse("output-topic",
+        throw new IllegalArgumentException("output-topic configuration parameter is required"))
+      val bootstrapServers = config.getOrElse("bootstrap-servers", "localhost:9092")
 
-    // Convert PIIRecord to JSON string
-    val stringStream = stream.map(record => mapper.writeValueAsString(record.toMap))
+      logger.info(s"Setting up output to Kafka topic: $outputTopic, bootstrap servers: $bootstrapServers")
 
-    // Write to Kafka using KafkaUtils
-    KafkaUtils.writeStringStream(
-      stringStream,
-      outputTopic,
-      bootstrapServers
-    )
+      // Convert PIIRecord to JSON string
+      val stringStream = stream.map(record => {
+        try {
+          logger.info(s"Converting record to JSON: ${record.id}")
+          val json = mapper.writeValueAsString(record.toMap)
+          logger.info(s"Record converted to JSON: ${json.take(100)}...")
+          json
+        } catch {
+          case e: Exception =>
+            logger.error(s"Error converting record to JSON: ${e.getMessage}", e)
+            s"""{"error":"Failed to convert record","id":"${record.id}"}"""
+        }
+      })
+
+      // Write to Kafka using KafkaUtils
+      logger.info("Writing to Kafka...")
+      KafkaUtils.writeStringStream(
+        stringStream,
+        outputTopic,
+        bootstrapServers
+      )
+      logger.info("Kafka sink configured")
+    } catch {
+      case e: Exception =>
+        logger.error(s"Error in doOutput: ${e.getMessage}", e)
+    }
   }
 
   /**
@@ -98,29 +126,63 @@ class PIIStream extends Stream[PIIRecord] with java.io.Serializable {
                                  ctx: BroadcastProcessFunction[String, JsonNode, PIIRecord]#ReadOnlyContext,
                                  out: Collector[PIIRecord]
                                ): Unit = {
+      // Log the raw input
+      processorLogger.info(s"Received raw input: ${value.take(100)}...")
+
       // Get current schema from broadcast state
       val schema = ctx.getBroadcastState(SchemaMonitorUtils.schemaDescriptor).get("current")
 
       if (schema != null) {
         try {
           // Parse input JSON
+          processorLogger.info("Attempting to parse JSON")
           val jsonNode = mapper.readTree(value)
+          processorLogger.info(s"JSON parsed, has id field: ${jsonNode.has("id")}")
 
-          // Convert to PIIRecord
+          // Get all defined field names from the schema
+          val definedFields = SchemaPIIUtils.getFields(schema).map(field =>
+            Option(field.get("name")).map(_.asText()).getOrElse("")
+          ).toSet + "id" // Include "id" which is required
+
+          // Get all field names from the JSON
+          val allJsonFields = {
+            val fields = new scala.collection.mutable.HashSet[String]()
+            val iterator = jsonNode.fieldNames()
+            while (iterator.hasNext) {
+              fields += iterator.next()
+            }
+            fields.toSet
+          }
+
+          // Find fields in JSON but not in schema
+          val undefinedFields = allJsonFields -- definedFields
+
+          // Log warning for undefined fields
+          if (undefinedFields.nonEmpty) {
+            processorLogger.warn(s"Event contains fields not defined in schema: ${undefinedFields.mkString(", ")}")
+          }
+
+          // Convert to PIIRecord (only includes schema-defined fields)
+          processorLogger.info("Converting to PIIRecord")
           val record = PIIRecord.fromJsonNode(jsonNode, Some(schema))
+          processorLogger.info(s"Successfully created PIIRecord with ID: ${record.id}")
 
           // Apply PII masking based on schema
+          processorLogger.info("Applying PII masking")
           val maskedRecord = SchemaPIIUtils.maskPIIFields(record, schema)
+          processorLogger.info(s"Successfully masked fields: ${maskedRecord.fields.keys.mkString(", ")}")
 
+          // Output the processed record
+          processorLogger.info("Collecting processed record")
           out.collect(maskedRecord)
-
-          processorLogger.info(s"Received event: ${value.take(50)}...")
-
-        } catch {
+          processorLogger.info("Record has been collected for output")
+        }
+        catch {
           case e: Exception =>
             processorLogger.error(s"Error processing record: ${e.getMessage}", e)
         }
-      } else {
+      }
+      else {
         processorLogger.warn("Received record but schema is not yet available")
       }
     }
@@ -130,9 +192,16 @@ class PIIStream extends Stream[PIIRecord] with java.io.Serializable {
                                           ctx: BroadcastProcessFunction[String, JsonNode, PIIRecord]#Context,
                                           out: Collector[PIIRecord]
                                         ): Unit = {
-      // Store schema in broadcast state
+      // Get current schema
+      val currentSchema = ctx.getBroadcastState(SchemaMonitorUtils.schemaDescriptor).get("current")
+
+      // Only log when schema actually changes
+      if (currentSchema == null || !currentSchema.equals(schema)) {
+        processorLogger.info("Schema updated in broadcast state with new content")
+      }
+
+      // Always update the broadcast state
       ctx.getBroadcastState(SchemaMonitorUtils.schemaDescriptor).put("current", schema)
-      processorLogger.info("Schema updated in broadcast state")
     }
   }
 }
