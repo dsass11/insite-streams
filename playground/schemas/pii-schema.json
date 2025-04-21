@@ -1,0 +1,105 @@
+{
+  "name": "UserProfile",
+  "version": "1.0",
+  "description": "Schema for user profile data with PII fields",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "description": "Unique identifier for the user",
+      "isPII": false,
+      "required": true
+    },
+    {
+      "name": "firstName",
+      "type": "string",
+      "description": "User's first name",
+      "isPII": true,
+      "piiOperation": "mask",
+      "maskFormat": "X***"
+    },
+    {
+      "name": "lastName",
+      "type": "string",
+      "description": "User's last name",
+      "isPII": true,
+      "piiOperation": "mask",
+      "maskFormat": "X***"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "description": "User's email address",
+      "isPII": false,
+      "piiOperation": "mask",
+      "maskFormat": "X****@****X"
+    },
+    {
+      "name": "phoneNumber",
+      "type": "string",
+      "description": "User's phone number",
+      "isPII": true,
+      "piiOperation": "mask",
+      "maskFormat": "XXX-XXX-**XX"
+    },
+    {
+      "name": "ssn",
+      "type": "string",
+      "description": "Social Security Number",
+      "isPII": true,
+      "piiOperation": "redact"
+    },
+    {
+      "name": "address",
+      "type": "string",
+      "description": "User's home address",
+      "isPII": true,
+      "piiOperation": "mask"
+    },
+    {
+      "name": "dateOfBirth",
+      "type": "string",
+      "description": "User's date of birth",
+      "isPII": true,
+      "piiOperation": "generalize",
+      "ranges": [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]
+    },
+    {
+      "name": "accountBalance",
+      "type": "double",
+      "description": "User's account balance",
+      "isPII": true,
+      "piiOperation": "randomize"
+    },
+    {
+      "name": "accountType",
+      "type": "string",
+      "description": "Type of account",
+      "isPII": false
+    },
+    {
+      "name": "createdAt",
+      "type": "string",
+      "description": "Account creation timestamp",
+      "isPII": false
+    },
+    {
+      "name": "isActive",
+      "type": "boolean",
+      "description": "Whether the account is active",
+      "isPII": false
+    },
+    {
+      "name": "keyBlabla",
+      "type": "string",
+      "description": "Whether the key is active",
+      "isPII": false
+    },
+    {
+      "name": "keyBlabla2",
+      "type": "string",
+      "description": "Whether the key2 is active",
+      "isPII": false
+    }
+  ]
+}

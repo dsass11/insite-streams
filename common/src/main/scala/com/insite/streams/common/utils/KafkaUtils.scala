@@ -3,11 +3,12 @@ package com.insite.streams.common.utils
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.connector.base.DeliveryGuarantee
-import org.apache.flink.connector.kafka.sink.{KafkaSink, KafkaRecordSerializationSchema}
+import org.apache.flink.connector.kafka.sink.{KafkaRecordSerializationSchema, KafkaSink}
 import org.apache.flink.connector.kafka.source.KafkaSource
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.kafka.clients.consumer.OffsetResetStrategy
 import org.slf4j.LoggerFactory
 
 /**
@@ -36,7 +37,8 @@ object KafkaUtils {
       .setBootstrapServers(bootstrapServers)
       .setTopics(topic)
       .setGroupId(groupId)
-      .setStartingOffsets(OffsetsInitializer.earliest())
+      // Use EARLIEST for first run, then committed offsets for restarts:
+      .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
       .setValueOnlyDeserializer(new SimpleStringSchema())
 
     // Apply any additional configuration
@@ -92,7 +94,8 @@ object KafkaUtils {
     val sinkBuilder = KafkaSink.builder[String]()
       .setBootstrapServers(bootstrapServers)
       .setRecordSerializer(serializationSchema)
-      .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+      .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE) // Change this line
+//      .setTransactionalIdPrefix("pii-processor-") // Add this line for exactly-once
 
     // Apply any additional configuration
     config.foreach { case (key, value) =>

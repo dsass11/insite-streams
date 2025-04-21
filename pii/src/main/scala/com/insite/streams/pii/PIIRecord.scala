@@ -38,17 +38,7 @@ case class PIIRecord(
   def withField(name: String, value: Any): PIIRecord = {
     this.copy(fields = fields + (name -> value))
   }
-  
-  /**
-   * Add or update a dynamic property
-   *
-   * @param name Property name
-   * @param value Property value
-   * @return Updated record
-   */
-  def withDynamicProp(name: String, value: Any): PIIRecord = {
-    this.copy(dynamicProps = dynamicProps + (name -> value))
-  }
+
   
   /**
    * Convert to Map representation with all fields and properties
@@ -71,55 +61,131 @@ object PIIRecord {
    * @param schema Optional schema for field validation
    * @return PIIRecord instance
    */
+//  def fromJsonNode(jsonNode: JsonNode, schema: Option[JsonNode] = None): PIIRecord = {
+//    // Extract ID field
+//    val id = Option(jsonNode.get("id"))
+//      .map(_.asText())
+//      .getOrElse(throw new IllegalArgumentException("Record must have an ID field"))
+//
+//    // Process all fields from JSON
+//    val fields = new collection.mutable.HashMap[String, Any]()
+//    val dynamicProps = new collection.mutable.HashMap[String, Any]()
+//
+//    val fieldIterator = jsonNode.fields()
+//    while (fieldIterator.hasNext) {
+//      val entry = fieldIterator.next()
+//      val fieldName = entry.getKey
+//      val fieldValue = entry.getValue
+//
+//      if (fieldName != "id") {
+//        // Check if field exists in schema (if provided)
+//        val isSchemaField = schema
+//          .flatMap(s => Option(SchemaPIIUtils.getFieldByName(s, fieldName)))
+//          .isDefined
+//
+//        // Extract value based on type
+//        val value = if (fieldValue.isTextual) {
+//          fieldValue.asText()
+//        } else if (fieldValue.isInt) {
+//          fieldValue.asInt()
+//        } else if (fieldValue.isLong) {
+//          fieldValue.asLong()
+//        } else if (fieldValue.isDouble) {
+//          fieldValue.asDouble()
+//        } else if (fieldValue.isBoolean) {
+//          fieldValue.asBoolean()
+//        } else if (fieldValue.isNull) {
+//          null
+//        } else {
+//          // For complex types, just store as string
+//          fieldValue.toString
+//        }
+//
+//        // Add to appropriate map
+//        if (isSchemaField || schema.isEmpty) {
+//          fields(fieldName) = value
+//        } else {
+//          dynamicProps(fieldName) = value
+//        }
+//      }
+//    }
+//
+//    PIIRecord(id, fields.toMap, dynamicProps.toMap)
+//  }
+
   def fromJsonNode(jsonNode: JsonNode, schema: Option[JsonNode] = None): PIIRecord = {
     // Extract ID field
     val id = Option(jsonNode.get("id"))
       .map(_.asText())
       .getOrElse(throw new IllegalArgumentException("Record must have an ID field"))
-    
-    // Process all fields from JSON
+
+    // Process all fields from JSON that are defined in the schema
     val fields = new collection.mutable.HashMap[String, Any]()
-    val dynamicProps = new collection.mutable.HashMap[String, Any]()
-    
-    val fieldIterator = jsonNode.fields()
-    while (fieldIterator.hasNext) {
-      val entry = fieldIterator.next()
-      val fieldName = entry.getKey
-      val fieldValue = entry.getValue
-      
-      if (fieldName != "id") {
-        // Check if field exists in schema (if provided)
-        val isSchemaField = schema
-          .flatMap(s => Option(SchemaPIIUtils.getFieldByName(s, fieldName)))
-          .isDefined
-        
-        // Extract value based on type
-        val value = if (fieldValue.isTextual) {
-          fieldValue.asText()
-        } else if (fieldValue.isInt) {
-          fieldValue.asInt()
-        } else if (fieldValue.isLong) {
-          fieldValue.asLong()
-        } else if (fieldValue.isDouble) {
-          fieldValue.asDouble()
-        } else if (fieldValue.isBoolean) {
-          fieldValue.asBoolean()
-        } else if (fieldValue.isNull) {
-          null
-        } else {
-          // For complex types, just store as string
-          fieldValue.toString
-        }
-        
-        // Add to appropriate map
-        if (isSchemaField || schema.isEmpty) {
+
+    // If schema is provided, only include fields defined in the schema
+    if (schema.isDefined) {
+      val schemaFields = SchemaPIIUtils.getFields(schema.get)
+
+      schemaFields.foreach { fieldDef =>
+        val fieldName = Option(fieldDef.get("name")).map(_.asText()).getOrElse("")
+        if (fieldName.nonEmpty && fieldName != "id" && jsonNode.has(fieldName)) {
+          val fieldValue = jsonNode.get(fieldName)
+
+          // Extract value based on type
+          val value = if (fieldValue.isTextual) {
+            fieldValue.asText()
+          } else if (fieldValue.isInt) {
+            fieldValue.asInt()
+          } else if (fieldValue.isLong) {
+            fieldValue.asLong()
+          } else if (fieldValue.isDouble) {
+            fieldValue.asDouble()
+          } else if (fieldValue.isBoolean) {
+            fieldValue.asBoolean()
+          } else if (fieldValue.isNull) {
+            null
+          } else {
+            // For complex types, just store as string
+            fieldValue.toString
+          }
+
           fields(fieldName) = value
-        } else {
-          dynamicProps(fieldName) = value
+        }
+      }
+    } else {
+      // If no schema provided, include all fields except ID
+      val fieldIterator = jsonNode.fields()
+      while (fieldIterator.hasNext) {
+        val entry = fieldIterator.next()
+        val fieldName = entry.getKey
+
+        if (fieldName != "id") {
+          val fieldValue = entry.getValue
+
+          // Extract value based on type
+          val value = if (fieldValue.isTextual) {
+            fieldValue.asText()
+          } else if (fieldValue.isInt) {
+            fieldValue.asInt()
+          } else if (fieldValue.isLong) {
+            fieldValue.asLong()
+          } else if (fieldValue.isDouble) {
+            fieldValue.asDouble()
+          } else if (fieldValue.isBoolean) {
+            fieldValue.asBoolean()
+          } else if (fieldValue.isNull) {
+            null
+          } else {
+            // For complex types, just store as string
+            fieldValue.toString
+          }
+
+          fields(fieldName) = value
         }
       }
     }
-    
-    PIIRecord(id, fields.toMap, dynamicProps.toMap)
+
+    // Create PIIRecord with only the schema-defined fields
+    PIIRecord(id, fields.toMap)
   }
 }
