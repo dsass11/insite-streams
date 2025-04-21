@@ -1,0 +1,15 @@
+{
+  "id": "user456",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "email": "jane.doe@example.com",
+  "phoneNumber": "555-987-6543",
+  "ssn": "987-65-4321",
+  "address": "456 Oak Avenue, Othertown, NY 10001",
+  "dateOfBirth": "1978-11-23",
+  "accountBalance": 98765.43,
+  "accountType": "checking",
+  "createdAt": "2023-03-22T09:15:30Z",
+  "isActive": true,
+  "loyaltyLevel": "gold"
+}

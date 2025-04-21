@@ -14,9 +14,8 @@ import org.slf4j.LoggerFactory
 /**
  * Stream implementation for PII data masking with schema monitoring
  */
-class PIIStream extends Stream[PIIRecord] {
-  private val logger = LoggerFactory.getLogger(getClass)
-
+class PIIStream extends Stream[PIIRecord] with java.io.Serializable {
+  @transient private lazy val logger = LoggerFactory.getLogger(getClass)
 
   /**
    * Process records from Kafka, apply PII masking, and return processed stream
@@ -91,7 +90,9 @@ class PIIStream extends Stream[PIIRecord] {
   /**
    * Broadcast processor that applies schema rules to incoming records
    */
-  private class SchemaBroadcastProcessor extends BroadcastProcessFunction[String, JsonNode, PIIRecord] {
+  private class SchemaBroadcastProcessor extends BroadcastProcessFunction[String, JsonNode, PIIRecord] with java.io.Serializable {
+    @transient private lazy val processorLogger = LoggerFactory.getLogger(classOf[SchemaBroadcastProcessor])
+
     override def processElement(
                                  value: String,
                                  ctx: BroadcastProcessFunction[String, JsonNode, PIIRecord]#ReadOnlyContext,
@@ -112,12 +113,15 @@ class PIIStream extends Stream[PIIRecord] {
           val maskedRecord = SchemaPIIUtils.maskPIIFields(record, schema)
 
           out.collect(maskedRecord)
+
+          processorLogger.info(s"Received event: ${value.take(50)}...")
+
         } catch {
           case e: Exception =>
-            logger.error(s"Error processing record: ${e.getMessage}", e)
+            processorLogger.error(s"Error processing record: ${e.getMessage}", e)
         }
       } else {
-        logger.warn("Received record but schema is not yet available")
+        processorLogger.warn("Received record but schema is not yet available")
       }
     }
 
@@ -128,8 +132,7 @@ class PIIStream extends Stream[PIIRecord] {
                                         ): Unit = {
       // Store schema in broadcast state
       ctx.getBroadcastState(SchemaMonitorUtils.schemaDescriptor).put("current", schema)
-      logger.info("Schema updated in broadcast state")
+      processorLogger.info("Schema updated in broadcast state")
     }
   }
-
 }

@@ -1,0 +1,16 @@
+{
+  "id": "user123",
+  "firstName": "John",
+  "lastName": "Smith",
+  "email": "john.smith.dsass@example.com",
+  "phoneNumber": "555-123-4567",
+  "ssn": "123-45-6789",
+  "address": "123 Main Street, Anytown, CA 90210",
+  "dateOfBirth": "1985-06-15",
+  "accountBalance": 12345.67,
+  "accountType": "savings",
+  "createdAt": "2023-01-15T14:30:45Z",
+  "isActive": true,
+  "keyBlabla": "valBlabla"
+}
+
