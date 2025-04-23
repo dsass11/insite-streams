@@ -1,0 +1,85 @@
+{
+  "name": "TrailSchema",
+  "version": "1.0",
+  "description": "Schema for trail data validation and enrichment",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "description": "Unique identifier for the trail reading",
+      "required": true
+    },
+    {
+      "name": "project_name",
+      "type": "string",
+      "description": "Name of the project",
+      "required": true
+    },
+    {
+      "name": "temperature",
+      "type": "double",
+      "description": "Temperature reading in celsius",
+      "required": true
+    },
+    {
+      "name": "location",
+      "type": "string",
+      "description": "Location of the reading",
+      "required": true
+    },
+    {
+      "name": "humidity",
+      "type": "double",
+      "description": "Humidity percentage",
+      "required": true
+    },
+    {
+      "name": "wind_speed",
+      "type": "double",
+      "description": "Wind speed in km/h",
+      "required": false
+    },
+    {
+      "name": "pressure",
+      "type": "double",
+      "description": "Barometric pressure in hPa",
+      "required": false
+    },
+    {
+      "name": "visibility",
+      "type": "double",
+      "description": "Visibility in kilometers",
+      "required": false
+    },
+    {
+      "name": "precipitation",
+      "type": "double",
+      "description": "Precipitation amount in mm",
+      "required": false
+    },
+    {
+      "name": "reading_date",
+      "type": "date",
+      "description": "Date when the reading was taken",
+      "required": true
+    },
+    {
+      "name": "coordinates",
+      "type": "string",
+      "description": "GPS coordinates of the reading",
+      "required": false
+    },
+    {
+      "name": "sensor_id",
+      "type": "string",
+      "description": "ID of the sensor that took the reading",
+      "required": false
+    },
+    {
+      "name": "notes",
+      "type": "string",
+      "description": "Additional notes about the reading",
+      "required": false
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "trail_reading_123456",
+  "project_name": "Mountain Climate Monitoring",
+  "temperature": 18.5,
+  "location": "Mount Rainier - Paradise Trail",
+  "humidity": 65.2,
+  "wind_speed": 12.8,
+  "pressure": 1012.5,
+  "visibility": 8.3,
+  "precipitation": 0.0,
+  "reading_date": "2025-04-22",
+  "coordinates": "46.7857° N, 121.7349° W",
+  "sensor_id": "MT-RNIR-001",
+  "notes": "Clear day, excellent visibility from summit ridge"
+}
